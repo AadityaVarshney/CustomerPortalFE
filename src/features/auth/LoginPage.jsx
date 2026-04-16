@@ -190,14 +190,7 @@ export default function LoginPage() {
             </p>
           </div>
         </div>
-
-        {/* Demo hint */}
-        <div className="mt-4 p-3 rounded-xl bg-accent/30 border border-white/[0.06] text-center">
-          <p className="text-xs text-muted-foreground">
-            <span className="font-medium text-foreground">Demo:</span>{' '}
-            customer@demo.com / internal@demo.com — password: <code className="font-mono">demo123</code>
-          </p>
-        </div>
+      
       </div>
     </div>
   )

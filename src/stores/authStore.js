@@ -12,24 +12,36 @@ export const useAuthStore = create(
       refreshTokenValue: null,
       isLoading: false,
 
-      login: async (credentials) => {
-        set({ isLoading: true })
-        try {
-          const { data } = await api.post('/auth/login', credentials)
-          set({
-            user: data.user,
-            role: data.user.role,
-            workspaceId: data.user.workspace_id,
-            token: data.access_token,
-            refreshTokenValue: data.refresh_token,
-            isLoading: false,
-          })
-          return data
-        } catch (error) {
-          set({ isLoading: false })
-          throw error
-        }
-      },
+login: async (credentials) => {
+  set({ isLoading: true })
+  try {
+    const { data } = await api.post('/auth/login', credentials)
+    const { accessToken, refreshToken, user } = data.data  // unwrap nested `data`
+
+    const roleMap = {
+      'INTERNAL_ADMIN': '3sc_admin',
+      'INTERNAL_AGENT': '3sc_agent',
+      'INTERNAL_LEAD':  '3sc_lead',
+      'CUSTOMER_ADMIN': 'customer_admin',
+      'CUSTOMER_USER':  'customer_user',
+    }
+
+    const normalisedUser = { ...user, role: roleMap[user.role] ?? user.role }
+
+    set({
+      user: normalisedUser,
+      role: normalisedUser.role,
+      workspaceId: user.workspaceId,   // API returns `workspaceId` not `workspace_id`
+      token: accessToken,
+      refreshTokenValue: refreshToken,
+      isLoading: false,
+    })
+    return { ...data.data, user: normalisedUser }
+  } catch (error) {
+    set({ isLoading: false })
+    throw error
+  }
+},
 
       logout: () => {
         set({
@@ -75,3 +87,4 @@ export const useAuthStore = create(
     },
   ),
 )
+ 
