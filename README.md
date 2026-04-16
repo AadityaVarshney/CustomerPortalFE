@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Customer Portal — Frontend
 
 React 18 + Vite + Tailwind CSS + shadcn/ui
@@ -111,3 +112,6 @@ VITE_SOCKET_URL=http://localhost:8080
 - 🔲 Notifications centre
 - 🔲 Workspace Settings
 - 🔲 Internal staff views
+=======
+# CustomerPortalFE
+>>>>>>> cb8c88d23c84f399df450be76d31ddca276e956d
