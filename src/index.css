@@ -1,0 +1,148 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 224 71% 4%;
+    --foreground: 213 31% 91%;
+
+    --card: 224 71% 6%;
+    --card-foreground: 213 31% 91%;
+
+    --popover: 224 71% 6%;
+    --popover-foreground: 213 31% 91%;
+
+    --primary: 262 80% 60%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 222 47% 11%;
+    --secondary-foreground: 213 31% 91%;
+
+    --muted: 223 47% 11%;
+    --muted-foreground: 215 16% 57%;
+
+    --accent: 216 34% 17%;
+    --accent-foreground: 213 31% 91%;
+
+    --destructive: 0 63% 31%;
+    --destructive-foreground: 213 31% 91%;
+
+    --border: 216 34% 17%;
+    --input: 216 34% 17%;
+    --ring: 262 80% 60%;
+
+    --radius: 0.75rem;
+
+    /* Brand (overridable per workspace) */
+    --brand-primary: #8b5cf6;
+    --brand-accent: #6d28d9;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    @apply dark;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    background-image: 
+      radial-gradient(ellipse at 20% 50%, rgba(139, 92, 246, 0.08) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 20%, rgba(109, 40, 217, 0.06) 0%, transparent 50%);
+    background-attachment: fixed;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-display;
+  }
+}
+
+@layer components {
+  /* Glass morphism card */
+  .glass-card {
+    @apply bg-glass backdrop-blur-sm border border-white/[0.08] shadow-glass;
+  }
+
+  .glass-card-hover {
+    @apply hover:bg-glass-hover hover:border-white/[0.12] transition-all duration-200;
+  }
+
+  /* Sidebar nav items */
+  .nav-item {
+    @apply flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
+           text-muted-foreground hover:text-foreground hover:bg-accent/50
+           transition-all duration-150 cursor-pointer;
+  }
+
+  .nav-item.active {
+    @apply text-primary bg-primary/10 hover:bg-primary/15;
+  }
+
+  /* Scrollbar styling */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-border rounded-full;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    @apply bg-muted-foreground/30;
+  }
+
+  /* TipTap editor */
+  .tiptap-editor .ProseMirror {
+    @apply outline-none min-h-[120px] text-sm;
+  }
+
+  .tiptap-editor .ProseMirror p.is-editor-empty:first-child::before {
+    @apply text-muted-foreground pointer-events-none float-left h-0;
+    content: attr(data-placeholder);
+  }
+
+  .tiptap-editor .ProseMirror > * + * {
+    @apply mt-2;
+  }
+
+  .tiptap-editor .ProseMirror ul, 
+  .tiptap-editor .ProseMirror ol {
+    @apply pl-5;
+  }
+
+  .tiptap-editor .ProseMirror code {
+    @apply bg-muted px-1.5 py-0.5 rounded text-xs font-mono;
+  }
+
+  /* SLA pulse animation for near-breach */
+  .sla-warning {
+    animation: sla-pulse 1.5s ease-in-out infinite;
+  }
+
+  @keyframes sla-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+  }
+
+  /* Status badge colors */
+  .badge-open { @apply bg-blue-500/15 text-blue-400 border-blue-500/30; }
+  .badge-acknowledged { @apply bg-violet-500/15 text-violet-400 border-violet-500/30; }
+  .badge-in_progress { @apply bg-amber-500/15 text-amber-400 border-amber-500/30; }
+  .badge-resolved { @apply bg-emerald-500/15 text-emerald-400 border-emerald-500/30; }
+  .badge-closed { @apply bg-gray-500/15 text-gray-400 border-gray-500/30; }
+  .badge-escalated { @apply bg-red-500/15 text-red-400 border-red-500/30; }
+}
+
+/* Page transition */
+.page-enter {
+  animation: fade-in 0.25s ease-out;
+}
