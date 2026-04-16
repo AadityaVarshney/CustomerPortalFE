@@ -95,6 +95,7 @@ export default function AppRouter() {
           <Route path="dashboard" element={<CustomerDashboard />} />
           <Route path="tickets">
             <Route index element={<TicketListPage />} />
+            <Route path="new" element={<CreateTicketPage />} />
             <Route path=":ticketId" element={<TicketDetailPage />} />
           </Route>
           <Route path="customers">

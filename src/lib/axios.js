@@ -41,9 +41,15 @@ const processQueue = (error, token = null) => {
   failedQueue = []
 }
 
-// Response interceptor — 401 auto-refresh
+// Response interceptor — unwrap ApiResponse envelope + 401 auto-refresh
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // Auto-unwrap { success, data, meta } envelope so callers get the payload directly
+    if (response.data && typeof response.data.success === 'boolean' && 'data' in response.data) {
+      response.data = response.data.data
+    }
+    return response
+  },
   async (error) => {
     const originalRequest = error.config
 

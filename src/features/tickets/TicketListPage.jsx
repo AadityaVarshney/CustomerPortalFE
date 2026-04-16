@@ -43,13 +43,13 @@ function TicketTableRow({ ticket }) {
           {ticket.title}
         </p>
         <p className="text-xs text-muted-foreground mt-0.5">
-          {ticket.category} · {formatRelativeTime(ticket.updated_at)}
+          {ticket.category} · {formatRelativeTime(ticket.updatedAt)}
         </p>
       </div>
       <div className="flex items-center gap-3 shrink-0">
         <StatusBadge status={ticket.status} />
         <PriorityBadge priority={ticket.priority} />
-        <SLATimer due_at={ticket.sla_due_at} breached={ticket.sla_breached} />
+        <SLATimer due_at={ticket.slaDueAt} breached={ticket.slaBreached} />
         {ticket.assignee && <UserAvatar user={ticket.assignee} size="xs" />}
       </div>
     </Link>
@@ -74,8 +74,8 @@ export default function TicketListPage() {
     limit: 20,
   })
 
-  const tickets = data?.items ?? []
-  const total = data?.total ?? 0
+  const tickets = data?.content ?? []
+  const total = data?.totalElements ?? 0
   const totalPages = Math.ceil(total / 20)
 
   const clearFilter = (key) => setFilters((f) => ({ ...f, [key]: '' }))

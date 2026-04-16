@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -161,10 +161,10 @@ function Step1({ form, onNext }) {
           {TICKET_PRIORITIES.map((p) => {
             const selected = form.watch('priority') === p.value
             const colors = {
-              low: 'border-gray-500/40 text-gray-400 data-[selected=true]:bg-gray-500/15',
-              medium: 'border-blue-500/40 text-blue-400 data-[selected=true]:bg-blue-500/15',
-              high: 'border-amber-500/40 text-amber-400 data-[selected=true]:bg-amber-500/15',
-              critical: 'border-red-500/40 text-red-400 data-[selected=true]:bg-red-500/15',
+              LOW: 'border-gray-500/40 text-gray-400 data-[selected=true]:bg-gray-500/15',
+              MEDIUM: 'border-blue-500/40 text-blue-400 data-[selected=true]:bg-blue-500/15',
+              HIGH: 'border-amber-500/40 text-amber-400 data-[selected=true]:bg-amber-500/15',
+              CRITICAL: 'border-red-500/40 text-red-400 data-[selected=true]:bg-red-500/15',
             }[p.value]
             return (
               <button
@@ -436,7 +436,7 @@ function Step4({ selectedProject, setSelectedProject, onBack, onSubmit, isSubmit
               <span className="text-sm text-muted-foreground">No project — standalone ticket</span>
             </button>
 
-            {(projects.data?.items ?? []).map((project) => (
+            {(projects.data?.content ?? projects.data ?? []).map((project) => (
               <button
                 key={project.id}
                 type="button"
@@ -486,6 +486,8 @@ function Step4({ selectedProject, setSelectedProject, onBack, onSubmit, isSubmit
 // --- Main page ---
 export default function CreateTicketPage() {
   const navigate = useNavigate()
+  const location = useLocation()
+  const base = location.pathname.startsWith('/internal') ? '/internal' : '/customer'
   const addToast = useUIStore((s) => s.addToast)
   const createTicket = useCreateTicket()
 
@@ -495,7 +497,7 @@ export default function CreateTicketPage() {
 
   const step1Form = useForm({
     resolver: zodResolver(step1Schema),
-    defaultValues: { title: '', category: '', priority: 'medium' },
+    defaultValues: { title: '', category: '', priority: 'MEDIUM' },
   })
 
   const step2Form = useForm({
@@ -511,32 +513,28 @@ export default function CreateTicketPage() {
     const step1Data = step1Form.getValues()
     const step2Data = step2Form.getValues()
 
-    // Upload files first
-    let attachmentIds = []
-    if (files.length > 0) {
-      try {
-        const formData = new FormData()
-        files.forEach((f) => formData.append('files', f))
-        const { data } = await api.post('/uploads', formData, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-        })
-        attachmentIds = data.ids ?? []
-      } catch {
-        addToast({ type: 'warning', title: 'Attachment upload failed', description: 'Ticket will be created without attachments.' })
-      }
-    }
-
     createTicket.mutate(
       {
         ...step1Data,
         ...step2Data,
-        project_id: selectedProject,
-        attachment_ids: attachmentIds,
+        projectId: selectedProject,
       },
       {
-        onSuccess: (ticket) => {
+        onSuccess: async (ticket) => {
+          // Upload attachments after ticket creation using the ticket id
+          if (files.length > 0) {
+            try {
+              const formData = new FormData()
+              files.forEach((f) => formData.append('files', f))
+              await api.post(`/tickets/${ticket.id}/attachments`, formData, {
+                headers: { 'Content-Type': 'multipart/form-data' },
+              })
+            } catch {
+              addToast({ type: 'warning', title: 'Attachment upload failed', description: 'Ticket was created but files could not be attached.' })
+            }
+          }
           addToast({ type: 'success', title: 'Ticket created!', description: `#${ticket.id?.slice(-6)} has been submitted.` })
-          navigate(`/customer/tickets/${ticket.id}`)
+          navigate(`${base}/tickets/${ticket.id}`)
         },
         onError: (err) => {
           addToast({

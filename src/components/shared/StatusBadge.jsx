@@ -1,12 +1,12 @@
 import { cn } from '@/lib/utils'
 
 const STATUS_CONFIG = {
-  open: { label: 'Open', className: 'badge-open' },
-  acknowledged: { label: 'Acknowledged', className: 'badge-acknowledged' },
-  in_progress: { label: 'In Progress', className: 'badge-in_progress' },
-  resolved: { label: 'Resolved', className: 'badge-resolved' },
-  closed: { label: 'Closed', className: 'badge-closed' },
-  escalated: { label: 'Escalated', className: 'badge-escalated' },
+  OPEN: { label: 'Open', className: 'badge-open' },
+  ACKNOWLEDGED: { label: 'Acknowledged', className: 'badge-acknowledged' },
+  IN_PROGRESS: { label: 'In Progress', className: 'badge-in_progress' },
+  RESOLVED: { label: 'Resolved', className: 'badge-resolved' },
+  CLOSED: { label: 'Closed', className: 'badge-closed' },
+  ESCALATED: { label: 'Escalated', className: 'badge-escalated' },
 }
 
 export function StatusBadge({ status, className }) {

@@ -16,7 +16,8 @@ login: async (credentials) => {
   set({ isLoading: true })
   try {
     const { data } = await api.post('/auth/login', credentials)
-    const { accessToken, refreshToken, user } = data.data  // unwrap nested `data`
+    // interceptor unwraps ApiResponse — data = { accessToken, refreshToken, user }
+    const { accessToken, refreshToken, user } = data
 
     const roleMap = {
       'INTERNAL_ADMIN': '3sc_admin',
@@ -31,12 +32,12 @@ login: async (credentials) => {
     set({
       user: normalisedUser,
       role: normalisedUser.role,
-      workspaceId: user.workspaceId,   // API returns `workspaceId` not `workspace_id`
+      workspaceId: user.workspaceId,
       token: accessToken,
       refreshTokenValue: refreshToken,
       isLoading: false,
     })
-    return { ...data.data, user: normalisedUser }
+    return { ...data, user: normalisedUser }
   } catch (error) {
     set({ isLoading: false })
     throw error
@@ -57,16 +58,17 @@ login: async (credentials) => {
         const refreshTokenValue = get().refreshTokenValue
         if (!refreshTokenValue) throw new Error('No refresh token')
 
+        // interceptor unwraps ApiResponse — data = { accessToken, refreshToken, ... }
         const { data } = await api.post('/auth/refresh', {
           refresh_token: refreshTokenValue,
         })
 
         set({
-          token: data.access_token,
-          refreshTokenValue: data.refresh_token ?? refreshTokenValue,
+          token: data.accessToken,
+          refreshTokenValue: data.refreshToken ?? refreshTokenValue,
         })
 
-        return data.access_token
+        return data.accessToken
       },
 
       updateUser: (updates) => {

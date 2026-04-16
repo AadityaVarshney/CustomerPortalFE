@@ -68,17 +68,19 @@ export default {
         sm: 'calc(var(--radius) - 4px)',
       },
       backgroundImage: {
-        'glass': 'linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%)',
-        'glass-hover': 'linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.04) 100%)',
-        'brand-gradient': 'linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(262, 80%, 65%) 100%)',
+        'glass': 'linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.95) 100%)',
+        'glass-hover': 'linear-gradient(135deg, rgba(255,255,255,1) 0%, rgba(255,255,255,1) 100%)',
+        'brand-gradient': 'linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(262, 72%, 60%) 100%)',
       },
       backdropBlur: {
         xs: '2px',
       },
       boxShadow: {
-        'glass': '0 8px 32px 0 rgba(0, 0, 0, 0.37)',
-        'glass-sm': '0 4px 16px 0 rgba(0, 0, 0, 0.25)',
-        'glow': '0 0 20px rgba(139, 92, 246, 0.3)',
+        'glass': '0 1px 3px 0 rgba(0,0,0,0.08), 0 1px 2px -1px rgba(0,0,0,0.06)',
+        'glass-sm': '0 1px 2px 0 rgba(0,0,0,0.05)',
+        'card': '0 1px 3px 0 rgba(0,0,0,0.08), 0 1px 2px -1px rgba(0,0,0,0.06)',
+        'card-hover': '0 4px 12px 0 rgba(0,0,0,0.10), 0 2px 4px -1px rgba(0,0,0,0.06)',
+        'glow': '0 0 20px rgba(124, 58, 237, 0.2)',
       },
       keyframes: {
         'accordion-down': {

@@ -4,38 +4,46 @@
 
 @layer base {
   :root {
-    --background: 224 71% 4%;
-    --foreground: 213 31% 91%;
+    /* ── Backgrounds ─────────────────────────────── */
+    --background: 220 20% 97%;        /* near-white with a cool tint */
+    --foreground: 224 30% 12%;        /* deep navy-black text */
 
-    --card: 224 71% 6%;
-    --card-foreground: 213 31% 91%;
+    /* ── Card / Popover ──────────────────────────── */
+    --card: 0 0% 100%;
+    --card-foreground: 224 30% 12%;
 
-    --popover: 224 71% 6%;
-    --popover-foreground: 213 31% 91%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 224 30% 12%;
 
-    --primary: 262 80% 60%;
+    /* ── Primary — violet, darkened for light bg ── */
+    --primary: 262 72% 52%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 222 47% 11%;
-    --secondary-foreground: 213 31% 91%;
+    /* ── Secondary ───────────────────────────────── */
+    --secondary: 220 16% 92%;
+    --secondary-foreground: 224 30% 20%;
 
-    --muted: 223 47% 11%;
-    --muted-foreground: 215 16% 57%;
+    /* ── Muted ───────────────────────────────────── */
+    --muted: 220 16% 94%;
+    --muted-foreground: 220 14% 46%;
 
-    --accent: 216 34% 17%;
-    --accent-foreground: 213 31% 91%;
+    /* ── Accent ──────────────────────────────────── */
+    --accent: 220 18% 91%;
+    --accent-foreground: 224 30% 16%;
 
-    --destructive: 0 63% 31%;
-    --destructive-foreground: 213 31% 91%;
+    /* ── Destructive ─────────────────────────────── */
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 216 34% 17%;
-    --input: 216 34% 17%;
-    --ring: 262 80% 60%;
+    /* ── Border / Input / Ring ───────────────────── */
+    --border: 220 16% 88%;
+    --input: 220 16% 88%;
+    --ring: 262 72% 52%;
 
     --radius: 0.75rem;
 
-    /* Brand (overridable per workspace) */
-    --brand-primary: #8b5cf6;
+    /* ── Brand (overridable per workspace) ──────── */
+    --brand-primary: #7c3aed;
     --brand-accent: #6d28d9;
   }
 }
@@ -48,8 +56,8 @@
   body {
     @apply bg-background text-foreground font-sans antialiased;
     background-image: 
-      radial-gradient(ellipse at 20% 50%, rgba(139, 92, 246, 0.08) 0%, transparent 50%),
-      radial-gradient(ellipse at 80% 20%, rgba(109, 40, 217, 0.06) 0%, transparent 50%);
+      radial-gradient(ellipse at 15% 60%, rgba(124, 58, 237, 0.05) 0%, transparent 55%),
+      radial-gradient(ellipse at 85% 15%, rgba(109, 40, 217, 0.04) 0%, transparent 50%);
     background-attachment: fixed;
   }
 
@@ -59,13 +67,13 @@
 }
 
 @layer components {
-  /* Glass morphism card */
+  /* Card — crisp white with subtle shadow instead of dark glass */
   .glass-card {
-    @apply bg-glass backdrop-blur-sm border border-white/[0.08] shadow-glass;
+    @apply bg-white border border-border shadow-card;
   }
 
   .glass-card-hover {
-    @apply hover:bg-glass-hover hover:border-white/[0.12] transition-all duration-200;
+    @apply hover:shadow-card-hover hover:border-border/60 transition-all duration-200;
   }
 
   /* Sidebar nav items */
@@ -129,17 +137,16 @@
     50% { opacity: 0.6; }
   }
 
-  /* Status badge colors */
-  .badge-open { @apply bg-blue-500/15 text-blue-400 border-blue-500/30; }
-  .badge-acknowledged { @apply bg-violet-500/15 text-violet-400 border-violet-500/30; }
-  .badge-in_progress { @apply bg-amber-500/15 text-amber-400 border-amber-500/30; }
-  .badge-resolved { @apply bg-emerald-500/15 text-emerald-400 border-emerald-500/30; }
-  .badge-closed { @apply bg-gray-500/15 text-gray-400 border-gray-500/30; }
-  .badge-escalated { @apply bg-red-500/15 text-red-400 border-red-500/30; }
+  /* Status badge colors — light theme */
+  .badge-open         { @apply bg-blue-50    text-blue-600    border-blue-200; }
+  .badge-acknowledged { @apply bg-violet-50  text-violet-600  border-violet-200; }
+  .badge-in_progress  { @apply bg-amber-50   text-amber-600   border-amber-200; }
+  .badge-resolved     { @apply bg-emerald-50 text-emerald-600 border-emerald-200; }
+  .badge-closed       { @apply bg-gray-100   text-gray-500    border-gray-200; }
+  .badge-escalated    { @apply bg-red-50     text-red-600     border-red-200; }
 }
 
 /* Page transition */
 .page-enter {
   animation: fade-in 0.25s ease-out;
 }
- 

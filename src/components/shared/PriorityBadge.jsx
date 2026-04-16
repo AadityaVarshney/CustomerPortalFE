@@ -2,22 +2,22 @@ import { AlertTriangle, ArrowDown, ArrowUp, Zap } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const PRIORITY_CONFIG = {
-  low: {
+  LOW: {
     label: 'Low',
     icon: ArrowDown,
     className: 'bg-gray-500/15 text-gray-400 border-gray-500/30',
   },
-  medium: {
+  MEDIUM: {
     label: 'Medium',
     icon: ArrowUp,
     className: 'bg-blue-500/15 text-blue-400 border-blue-500/30',
   },
-  high: {
+  HIGH: {
     label: 'High',
     icon: AlertTriangle,
     className: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
   },
-  critical: {
+  CRITICAL: {
     label: 'Critical',
     icon: Zap,
     className: 'bg-red-500/15 text-red-400 border-red-500/30',
@@ -25,7 +25,7 @@ const PRIORITY_CONFIG = {
 }
 
 export function PriorityBadge({ priority, className, showLabel = true }) {
-  const config = PRIORITY_CONFIG[priority] ?? PRIORITY_CONFIG.medium
+  const config = PRIORITY_CONFIG[priority] ?? PRIORITY_CONFIG.MEDIUM
   const Icon = config.icon
 
   return (

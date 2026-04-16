@@ -39,26 +39,26 @@ export function truncate(str, maxLen = 60) {
 }
 
 export const TICKET_STATUSES = [
-  { value: 'open', label: 'Open' },
-  { value: 'acknowledged', label: 'Acknowledged' },
-  { value: 'in_progress', label: 'In Progress' },
-  { value: 'resolved', label: 'Resolved' },
-  { value: 'closed', label: 'Closed' },
-  { value: 'escalated', label: 'Escalated' },
+  { value: 'OPEN', label: 'Open' },
+  { value: 'ACKNOWLEDGED', label: 'Acknowledged' },
+  { value: 'IN_PROGRESS', label: 'In Progress' },
+  { value: 'RESOLVED', label: 'Resolved' },
+  { value: 'CLOSED', label: 'Closed' },
+  { value: 'ESCALATED', label: 'Escalated' },
 ]
 
 export const TICKET_PRIORITIES = [
-  { value: 'low', label: 'Low' },
-  { value: 'medium', label: 'Medium' },
-  { value: 'high', label: 'High' },
-  { value: 'critical', label: 'Critical' },
+  { value: 'LOW', label: 'Low' },
+  { value: 'MEDIUM', label: 'Medium' },
+  { value: 'HIGH', label: 'High' },
+  { value: 'CRITICAL', label: 'Critical' },
 ]
 
 export const TICKET_CATEGORIES = [
-  { value: 'bug', label: 'Bug Report' },
-  { value: 'feature', label: 'Feature Request' },
-  { value: 'billing', label: 'Billing' },
-  { value: 'technical', label: 'Technical Support' },
-  { value: 'security', label: 'Security' },
-  { value: 'other', label: 'Other' },
+  { value: 'BUG', label: 'Bug Report' },
+  { value: 'FEATURE_REQUEST', label: 'Feature Request' },
+  { value: 'ACCESS', label: 'Access' },
+  { value: 'BILLING', label: 'Billing' },
+  { value: 'INTEGRATION', label: 'Integration' },
+  { value: 'OTHER', label: 'Other' },
 ]
