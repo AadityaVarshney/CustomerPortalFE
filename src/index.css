@@ -45,10 +45,6 @@
     @apply border-border;
   }
 
-  html {
-    @apply dark;
-  }
-
   body {
     @apply bg-background text-foreground font-sans antialiased;
     background-image: 
@@ -146,3 +142,4 @@
 .page-enter {
   animation: fade-in 0.25s ease-out;
 }
+ 
