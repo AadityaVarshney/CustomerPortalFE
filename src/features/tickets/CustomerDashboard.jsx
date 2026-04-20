@@ -1,5 +1,7 @@
-import { useState } from 'react'
-import { Link, useNavigate, useLocation } from 'react-router-dom'
+// FIXED: Removed call to GET /dashboard/stats — this endpoint does NOT exist on the backend.
+// Stats are now derived client-side from the ticket list response.
+import { useState, useMemo } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { Plus, TrendingUp, Clock, CheckCircle2, AlertCircle, RefreshCw, ArrowRight, Activity } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import api from '@/lib/axios'
@@ -11,21 +13,15 @@ import { UserAvatar } from '@/components/shared/UserAvatar'
 import { formatRelativeTime, cn } from '@/lib/utils'
 
 // --- API hooks ---
-function useDashboardStats() {
-  return useQuery({
-    queryKey: ['dashboard', 'stats'],
-    queryFn: async () => {
-      const { data } = await api.get('/dashboard/stats')
-      return data
-    },
-  })
-}
+
+// REMOVED: useDashboardStats() — GET /dashboard/stats does not exist on BE.
+// Stats are now derived from the ticket list.
 
 function useRecentTickets() {
   return useQuery({
-    queryKey: ['tickets', { limit: 10, sort: 'updated_at' }],
+    queryKey: ['tickets', { limit: 50, sort: 'updated_at' }],
     queryFn: async () => {
-      const { data } = await api.get('/tickets?limit=10&sort=updatedAt&order=desc')
+      const { data } = await api.get('/tickets?limit=50&sort=updated_at&order=desc')
       return data
     },
     refetchInterval: 30000,
@@ -34,9 +30,9 @@ function useRecentTickets() {
 
 function useProjectHealth() {
   return useQuery({
-    queryKey: ['projects', 'health'],
+    queryKey: ['projects'],
     queryFn: async () => {
-      const { data } = await api.get('/projects?include=health')
+      const { data } = await api.get('/projects')
       return data
     },
   })
@@ -71,82 +67,53 @@ function MetricCard({ icon: Icon, label, value, trend, color, onClick, isLoading
         )}
         <p className="text-sm text-muted-foreground mt-1">{label}</p>
       </div>
-      <div className="mt-3 flex items-center gap-1 text-xs text-primary opacity-0 group-hover:opacity-100 transition-opacity">
-        View all <ArrowRight className="w-3 h-3" />
-      </div>
     </button>
   )
 }
 
-function TicketRow({ ticket, base }) {
+function TicketRow({ ticket }) {
   return (
     <Link
-      to={`${base}/tickets/${ticket.id}`}
-      className="flex items-center gap-4 p-4 rounded-xl hover:bg-accent/30 transition-colors group"
+      to={`/customer/tickets/${ticket.id}`}
+      className="flex items-start gap-4 px-5 py-4 hover:bg-accent/20 transition-colors group"
     >
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs font-mono text-muted-foreground">#{ticket.id?.slice(-6)}</span>
+        <div className="flex items-center gap-2 flex-wrap mb-1">
           <StatusBadge status={ticket.status} />
-          <PriorityBadge priority={ticket.priority} showLabel={false} />
+          <PriorityBadge priority={ticket.priority} />
         </div>
-        <p className="text-sm font-medium text-foreground mt-1 truncate group-hover:text-primary transition-colors">
+        <p className="text-sm font-medium text-foreground group-hover:text-primary transition-colors leading-snug truncate">
           {ticket.title}
         </p>
-        <p className="text-xs text-muted-foreground mt-0.5">
-          Updated {formatRelativeTime(ticket.updatedAt)}
-        </p>
+        <p className="text-xs text-muted-foreground mt-1">{formatRelativeTime(ticket.updated_at)}</p>
       </div>
-      <div className="flex flex-col items-end gap-2 shrink-0">
-        <SLATimer due_at={ticket.slaDueAt} breached={ticket.slaBreached} />
-      </div>
+      <SLATimer due_at={ticket.sla_due_at} breached={ticket.sla_breached} compact />
     </Link>
   )
 }
 
-function ProjectHealthCard({ project, base }) {
-  const ragColor = {
-    green: 'bg-emerald-500',
-    amber: 'bg-amber-500',
-    red: 'bg-red-500',
-  }[project.rag_status] ?? 'bg-gray-500'
-
-  const progress = project.milestones_total > 0
-    ? Math.round((project.milestones_completed / project.milestones_total) * 100)
-    : 0
-
+function ProjectCard({ project }) {
+  const progress = project.progress ?? 0
   return (
     <Link
-      to={`${base}/projects/${project.id}`}
-      className="glass-card glass-card-hover rounded-xl p-4 block"
+      to={`/customer/projects/${project.id}`}
+      className="p-4 hover:bg-accent/20 transition-colors group"
     >
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <span className={cn('w-2.5 h-2.5 rounded-full shrink-0', ragColor)} />
-            <p className="text-sm font-semibold text-foreground truncate">{project.name}</p>
-          </div>
-          <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{project.description}</p>
-        </div>
-        <span className="text-xs text-muted-foreground whitespace-nowrap">
-          {project.open_issues ?? 0} open
-        </span>
-      </div>
-      <div className="mt-3">
-        <div className="flex items-center justify-between text-xs text-muted-foreground mb-1.5">
-          <span>Progress</span>
-          <span>{progress}%</span>
-        </div>
-        <div className="h-1.5 rounded-full bg-accent overflow-hidden">
-          <div
-            className="h-full rounded-full bg-primary transition-all duration-500"
-            style={{ width: `${progress}%` }}
-          />
-        </div>
-        <p className="text-xs text-muted-foreground mt-1.5">
-          {project.milestones_completed ?? 0} / {project.milestones_total ?? 0} milestones
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-sm font-medium text-foreground group-hover:text-primary transition-colors truncate flex-1 mr-2">
+          {project.name}
         </p>
+        <span className="text-xs text-muted-foreground shrink-0">{progress}%</span>
       </div>
+      <div className="h-1.5 rounded-full bg-accent overflow-hidden">
+        <div
+          className="h-full rounded-full bg-primary transition-all duration-500"
+          style={{ width: `${progress}%` }}
+        />
+      </div>
+      <p className="text-xs text-muted-foreground mt-1.5">
+        {project.milestones_completed ?? 0} / {project.milestones_total ?? (project.milestones?.length ?? 0)} milestones
+      </p>
     </Link>
   )
 }
@@ -167,18 +134,36 @@ function EmptyState({ icon: Icon, title, description, action }) {
 // --- Main page ---
 export default function CustomerDashboard() {
   const user = useAuthStore((s) => s.user)
+  const role = useAuthStore((s) => s.role)
   const navigate = useNavigate()
-  const location = useLocation()
-  const base = location.pathname.startsWith('/internal') ? '/internal' : '/customer'
   const [statusFilter, setStatusFilter] = useState('all')
 
-  const stats = useDashboardStats()
+  const isInternal = ['3sc_agent', '3sc_lead', '3sc_admin'].includes(role)
+  const newTicketPath = isInternal ? '/internal/tickets/new' : '/customer/tickets/new'
+
   const tickets = useRecentTickets()
   const projects = useProjectHealth()
 
+  // Derive stats from ticket list (no /dashboard/stats endpoint on BE)
+  const allTickets = useMemo(() => {
+    return tickets.data?.items ?? tickets.data?.content ?? (Array.isArray(tickets.data) ? tickets.data : [])
+  }, [tickets.data])
+
+  const stats = useMemo(() => ({
+    open_count: allTickets.filter((t) => t.status === 'OPEN').length,
+    in_progress_count: allTickets.filter((t) => ['IN_PROGRESS', 'ACKNOWLEDGED'].includes(t.status)).length,
+    resolved_count: allTickets.filter((t) => ['RESOLVED', 'CLOSED'].includes(t.status)).length,
+    sla_breached: allTickets.filter((t) => t.sla_breached).length,
+  }), [allTickets])
+
   const filteredTickets = statusFilter === 'all'
-    ? tickets.data?.content ?? []
-    : (tickets.data?.content ?? []).filter((t) => t.status === statusFilter)
+    ? allTickets
+    : allTickets.filter((t) => t.status === statusFilter.toUpperCase())
+
+  const projectList = useMemo(() => {
+    const d = projects.data
+    return d?.items ?? d?.content ?? (Array.isArray(d) ? d : [])
+  }, [projects.data])
 
   const STATUS_FILTERS = [
     { value: 'all', label: 'All' },
@@ -202,9 +187,8 @@ export default function CustomerDashboard() {
             Here's what's happening with your support tickets today
           </p>
         </div>
-
         <button
-          onClick={() => navigate(`${base}/tickets/new`)}
+          onClick={() => navigate(newTicketPath)}
           className={cn(
             'flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium',
             'bg-brand-gradient text-white hover:opacity-90',
@@ -216,39 +200,39 @@ export default function CustomerDashboard() {
         </button>
       </div>
 
-      {/* Metric cards */}
+      {/* Metric cards — derived from ticket list */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <MetricCard
           icon={AlertCircle}
           label="Open Tickets"
-          value={stats.data?.openCount}
+          value={tickets.isLoading ? undefined : stats.open_count}
           color="bg-blue-500/15 text-blue-400"
-          isLoading={stats.isLoading}
-          onClick={() => { setStatusFilter('open'); document.getElementById('tickets-section')?.scrollIntoView({ behavior: 'smooth' }) }}
+          isLoading={tickets.isLoading}
+          onClick={() => setStatusFilter('open')}
         />
         <MetricCard
           icon={Activity}
           label="In Progress"
-          value={stats.data?.inProgressCount}
+          value={tickets.isLoading ? undefined : stats.in_progress_count}
           color="bg-amber-500/15 text-amber-400"
-          isLoading={stats.isLoading}
-          onClick={() => { setStatusFilter('in_progress'); document.getElementById('tickets-section')?.scrollIntoView({ behavior: 'smooth' }) }}
+          isLoading={tickets.isLoading}
+          onClick={() => setStatusFilter('in_progress')}
         />
         <MetricCard
           icon={CheckCircle2}
-          label="Resolved (30d)"
-          value={stats.data?.resolvedCount}
-          trend={stats.data?.resolvedTrend}
+          label="Resolved"
+          value={tickets.isLoading ? undefined : stats.resolved_count}
           color="bg-emerald-500/15 text-emerald-400"
-          isLoading={stats.isLoading}
+          isLoading={tickets.isLoading}
           onClick={() => setStatusFilter('resolved')}
         />
         <MetricCard
           icon={Clock}
-          label="Avg Response"
-          value={stats.data?.avgResponseTime ? `${stats.data.avgResponseTime}h` : undefined}
-          color="bg-violet-500/15 text-violet-400"
-          isLoading={stats.isLoading}
+          label="SLA Breached"
+          value={tickets.isLoading ? undefined : stats.sla_breached}
+          color={stats.sla_breached > 0 ? 'bg-red-500/15 text-red-400' : 'bg-violet-500/15 text-violet-400'}
+          isLoading={tickets.isLoading}
+          onClick={() => setStatusFilter('all')}
         />
       </div>
 
@@ -261,14 +245,13 @@ export default function CustomerDashboard() {
             <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.06]">
               <div className="flex items-center gap-3">
                 <h2 className="text-sm font-semibold text-foreground">Recent Tickets</h2>
-                {tickets.data?.totalElements && (
+                {allTickets.length > 0 && (
                   <span className="text-xs bg-accent px-2 py-0.5 rounded-full text-muted-foreground">
-                    {tickets.data.totalElements}
+                    {allTickets.length}
                   </span>
                 )}
               </div>
               <div className="flex items-center gap-2">
-                {/* Status filter pills */}
                 <div className="hidden sm:flex items-center gap-1">
                   {STATUS_FILTERS.map((f) => (
                     <button
@@ -311,11 +294,15 @@ export default function CustomerDashboard() {
                 <EmptyState
                   icon={CheckCircle2}
                   title="No tickets found"
-                  description={statusFilter === 'all' ? "You haven't created any support tickets yet." : `No ${statusFilter.replace('_', ' ')} tickets.`}
+                  description={
+                    statusFilter === 'all'
+                      ? "You haven't created any support tickets yet."
+                      : `No ${statusFilter.replace('_', ' ')} tickets.`
+                  }
                   action={
                     statusFilter === 'all' && (
                       <button
-                        onClick={() => navigate(`${base}/tickets/new`)}
+                        onClick={() => navigate(newTicketPath)}
                         className="mt-4 px-4 py-2 rounded-xl bg-primary/10 text-primary text-sm font-medium hover:bg-primary/20 transition-colors"
                       >
                         Create your first ticket
@@ -324,8 +311,8 @@ export default function CustomerDashboard() {
                   }
                 />
               ) : (
-                filteredTickets.map((ticket) => (
-                  <TicketRow key={ticket.id} ticket={ticket} base={base} />
+                filteredTickets.slice(0, 10).map((ticket) => (
+                  <TicketRow key={ticket.id} ticket={ticket} />
                 ))
               )}
             </div>
@@ -334,7 +321,7 @@ export default function CustomerDashboard() {
             {filteredTickets.length > 0 && (
               <div className="px-5 py-3 border-t border-white/[0.06]">
                 <Link
-                  to={`${base}/tickets`}
+                  to="/customer/tickets"
                   className="text-xs text-primary hover:text-primary/80 font-medium flex items-center gap-1 transition-colors"
                 >
                   View all tickets <ArrowRight className="w-3 h-3" />
@@ -350,60 +337,30 @@ export default function CustomerDashboard() {
             <div className="px-5 py-4 border-b border-white/[0.06] flex items-center justify-between">
               <h2 className="text-sm font-semibold text-foreground">Project Health</h2>
               <Link
-                to={`${base}/projects`}
+                to="/customer/projects"
                 className="text-xs text-primary hover:text-primary/80 transition-colors"
               >
                 View all
               </Link>
             </div>
-            <div className="p-4 space-y-3">
+            <div className="divide-y divide-white/[0.04]">
               {projects.isLoading ? (
                 Array.from({ length: 3 }).map((_, i) => (
-                  <div key={i} className="glass-card rounded-xl p-4 space-y-3">
-                    <div className="h-4 bg-accent rounded animate-pulse w-2/3" />
-                    <div className="h-2 bg-accent rounded animate-pulse" />
+                  <div key={i} className="p-4 space-y-2">
+                    <div className="h-3.5 bg-accent rounded animate-pulse w-2/3" />
+                    <div className="h-1.5 bg-accent rounded-full animate-pulse" />
                   </div>
                 ))
-              ) : !projects.data?.length ? (
-                <EmptyState
-                  icon={Activity}
-                  title="No projects yet"
-                  description="Projects will appear here once your team creates them."
-                />
+              ) : projectList.length === 0 ? (
+                <div className="py-10 text-center">
+                  <p className="text-xs text-muted-foreground">No active projects.</p>
+                </div>
               ) : (
-                projects.data.slice(0, 4).map((project) => (
-                  <ProjectHealthCard key={project.id} project={project} base={base} />
+                projectList.slice(0, 5).map((project) => (
+                  <ProjectCard key={project.id} project={project} />
                 ))
               )}
             </div>
-          </div>
-
-          {/* Quick actions */}
-          <div className="glass-card rounded-2xl p-4 space-y-2">
-            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1">
-              Quick Actions
-            </h3>
-            {[
-              { label: 'Create new ticket', to: `${base}/tickets/new`, icon: Plus },
-              { label: 'Browse knowledge base', to: `${base}/knowledge-base`, icon: Activity },
-              { label: 'View all projects', to: `${base}/projects`, icon: Activity },
-            ].map((action) => {
-              const Icon = action.icon
-              return (
-                <Link
-                  key={action.to}
-                  to={action.to}
-                  className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-accent/50 transition-colors group"
-                >
-                  <div className="w-8 h-8 rounded-lg bg-accent flex items-center justify-center group-hover:bg-primary/15 transition-colors">
-                    <Icon className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
-                  </div>
-                  <span className="text-sm text-muted-foreground group-hover:text-foreground transition-colors">
-                    {action.label}
-                  </span>
-                </Link>
-              )
-            })}
           </div>
         </div>
       </div>

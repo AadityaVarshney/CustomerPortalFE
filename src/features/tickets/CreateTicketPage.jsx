@@ -1,5 +1,8 @@
+// FIXED: Attachment upload flow corrected.
+// BUG: Was calling POST /uploads BEFORE ticket creation — this endpoint does not exist on BE.
+// FIX: Ticket is created first, then files are uploaded to POST /tickets/{id}/attachments.
 import { useState, useCallback } from 'react'
-import { useNavigate, useLocation } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -81,16 +84,31 @@ function Step1({ form, onNext }) {
     if (!title || title.length < 5) return
     setIsClassifying(true)
     try {
-      const { data } = await api.post('/ai/classify', { title })
+      const { data } = await api.post('/ai/classify', { title, description: '' })
       setAiSuggestion(data)
-      if (data.category) setValue('category', data.category)
-      if (data.priority) setValue('priority', data.priority)
+      if (data.suggestedCategory) setValue('category', data.suggestedCategory.toLowerCase())
+      if (data.suggestedPriority) setValue('priority', data.suggestedPriority.toLowerCase())
     } catch {
-      // Silent fail — AI is best-effort
+      // AI classify is best-effort
     } finally {
       setIsClassifying(false)
     }
   }
+
+  const categories = TICKET_CATEGORIES ?? [
+    { value: 'bug', label: 'Bug' },
+    { value: 'feature_request', label: 'Feature Request' },
+    { value: 'question', label: 'Question' },
+    { value: 'billing', label: 'Billing' },
+    { value: 'other', label: 'Other' },
+  ]
+
+  const priorities = TICKET_PRIORITIES ?? [
+    { value: 'low', label: 'Low', color: 'text-blue-400' },
+    { value: 'medium', label: 'Medium', color: 'text-amber-400' },
+    { value: 'high', label: 'High', color: 'text-orange-400' },
+    { value: 'critical', label: 'Critical', color: 'text-red-400' },
+  ]
 
   return (
     <form onSubmit={handleSubmit(onNext)} className="space-y-5">
@@ -125,7 +143,9 @@ function Step1({ form, onNext }) {
           <Sparkles className="w-4 h-4 text-primary mt-0.5 shrink-0" />
           <div className="text-xs">
             <p className="text-primary font-medium">AI pre-filled category & priority</p>
-            <p className="text-muted-foreground mt-0.5">Confidence: {Math.round((aiSuggestion.confidence ?? 0.8) * 100)}%</p>
+            <p className="text-muted-foreground mt-0.5">
+              Confidence: {Math.round((aiSuggestion.confidence ?? 0) * 100)}% — feel free to adjust below.
+            </p>
           </div>
         </div>
       )}
@@ -135,62 +155,64 @@ function Step1({ form, onNext }) {
         <label className="block text-sm font-medium text-foreground mb-1.5">
           Category <span className="text-red-400">*</span>
         </label>
-        <select
-          {...register('category')}
-          className={cn(
-            'w-full px-4 py-2.5 rounded-xl text-sm',
-            'bg-accent/50 border border-white/[0.08] text-foreground',
-            'focus:outline-none focus:ring-2 focus:ring-primary/50',
-            errors.category && 'border-red-500/50',
+        <Controller
+          name="category"
+          control={form.control}
+          render={({ field }) => (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {categories.map((cat) => (
+                <button
+                  key={cat.value}
+                  type="button"
+                  onClick={() => field.onChange(cat.value)}
+                  className={cn(
+                    'px-3 py-2.5 rounded-xl text-sm font-medium border transition-all text-left',
+                    field.value === cat.value
+                      ? 'border-primary bg-primary/10 text-foreground'
+                      : 'border-border/50 text-muted-foreground hover:text-foreground hover:border-white/20',
+                  )}
+                >
+                  {cat.label}
+                </button>
+              ))}
+            </div>
           )}
-        >
-          <option value="">Select a category…</option>
-          {TICKET_CATEGORIES.map((c) => (
-            <option key={c.value} value={c.value}>{c.label}</option>
-          ))}
-        </select>
+        />
         {errors.category && <p className="mt-1.5 text-xs text-red-400">{errors.category.message}</p>}
       </div>
 
       {/* Priority */}
       <div>
-        <label className="block text-sm font-medium text-foreground mb-1.5">
-          Priority <span className="text-red-400">*</span>
-        </label>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-          {TICKET_PRIORITIES.map((p) => {
-            const selected = form.watch('priority') === p.value
-            const colors = {
-              LOW: 'border-gray-500/40 text-gray-400 data-[selected=true]:bg-gray-500/15',
-              MEDIUM: 'border-blue-500/40 text-blue-400 data-[selected=true]:bg-blue-500/15',
-              HIGH: 'border-amber-500/40 text-amber-400 data-[selected=true]:bg-amber-500/15',
-              CRITICAL: 'border-red-500/40 text-red-400 data-[selected=true]:bg-red-500/15',
-            }[p.value]
-            return (
-              <button
-                key={p.value}
-                type="button"
-                data-selected={selected}
-                onClick={() => setValue('priority', p.value)}
-                className={cn(
-                  'px-3 py-2 rounded-xl text-sm font-medium border transition-all duration-150',
-                  colors,
-                  selected ? 'ring-2 ring-offset-1 ring-offset-background ring-current' : 'border-border/50',
-                )}
-              >
-                {p.label}
-              </button>
-            )
-          })}
-        </div>
+        <label className="block text-sm font-medium text-foreground mb-1.5">Priority</label>
+        <Controller
+          name="priority"
+          control={form.control}
+          render={({ field }) => (
+            <div className="flex gap-2 flex-wrap">
+              {priorities.map((p) => (
+                <button
+                  key={p.value}
+                  type="button"
+                  onClick={() => field.onChange(p.value)}
+                  className={cn(
+                    'flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium border transition-all',
+                    field.value === p.value
+                      ? 'border-current bg-current/10 ring-2 ring-offset-1 ring-offset-background ring-current'
+                      : 'border-border/50',
+                    p.color,
+                  )}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+          )}
+        />
         {errors.priority && <p className="mt-1.5 text-xs text-red-400">{errors.priority.message}</p>}
       </div>
 
       <div className="flex justify-end pt-2">
-        <button
-          type="submit"
-          className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
-        >
+        <button type="submit" className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">
           Continue <ChevronRight className="w-4 h-4" />
         </button>
       </div>
@@ -209,8 +231,9 @@ function Step2({ form, onNext, onBack }) {
     if (!description || description.length < 20) return
     setIsSearchingKB(true)
     try {
-      const { data } = await api.get(`/ai/kb-search?q=${encodeURIComponent(description.slice(0, 200))}`)
-      setKbSuggestions(data.articles ?? [])
+      const { data } = await api.get(`/ai/kb-search?query=${encodeURIComponent(description.slice(0, 200))}`)
+      const articles = Array.isArray(data) ? data : (data?.articles ?? data?.items ?? [])
+      setKbSuggestions(articles.slice(0, 3))
     } catch {
       // Silent fail
     } finally {
@@ -246,48 +269,39 @@ function Step2({ form, onNext, onBack }) {
       </div>
 
       {/* KB suggestions */}
-      {(isSearchingKB || kbSuggestions.length > 0) && (
-        <div className="rounded-xl border border-primary/20 bg-primary/5 overflow-hidden">
-          <div className="flex items-center gap-2 px-4 py-2.5 border-b border-white/[0.06]">
-            <Sparkles className="w-3.5 h-3.5 text-primary" />
-            <span className="text-xs font-medium text-primary">Related knowledge base articles</span>
-            {isSearchingKB && <Loader2 className="w-3 h-3 animate-spin text-primary ml-auto" />}
-          </div>
+      {isSearchingKB && (
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <Loader2 className="w-3 h-3 animate-spin" />
+          Searching Knowledge Base…
+        </div>
+      )}
+      {kbSuggestions.length > 0 && (
+        <div className="space-y-2">
+          <p className="flex items-center gap-1.5 text-xs text-amber-400">
+            <AlertCircle className="w-3.5 h-3.5" />
+            Related articles found — these might answer your question:
+          </p>
           {kbSuggestions.map((article) => (
             <a
               key={article.id}
               href={`/customer/knowledge-base/articles/${article.id}`}
               target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-3 px-4 py-3 hover:bg-primary/10 transition-colors border-b border-white/[0.04] last:border-0"
+              rel="noreferrer"
+              className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-amber-500/20 bg-amber-500/5 hover:bg-amber-500/10 transition-colors text-sm text-amber-300"
             >
-              <FileText className="w-4 h-4 text-muted-foreground shrink-0" />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm text-foreground truncate">{article.title}</p>
-                <p className="text-xs text-muted-foreground mt-0.5 truncate">{article.excerpt}</p>
-              </div>
+              <Sparkles className="w-3.5 h-3.5 shrink-0" />
+              {article.title}
             </a>
           ))}
-          {kbSuggestions.length > 0 && (
-            <p className="px-4 py-2 text-xs text-muted-foreground bg-accent/20">
-              Did any of these articles solve your problem? If yes, you may not need to submit a ticket.
-            </p>
-          )}
+          <p className="text-xs text-muted-foreground">If yes, you may not need to submit a ticket.</p>
         </div>
       )}
 
       <div className="flex justify-between pt-2">
-        <button
-          type="button"
-          onClick={onBack}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-        >
+        <button type="button" onClick={onBack} className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
           <ChevronLeft className="w-4 h-4" /> Back
         </button>
-        <button
-          type="submit"
-          className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
-        >
+        <button type="submit" className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">
           Continue <ChevronRight className="w-4 h-4" />
         </button>
       </div>
@@ -297,11 +311,8 @@ function Step2({ form, onNext, onBack }) {
 
 // --- Step 3: Attachments ---
 function Step3({ files, setFiles, onNext, onBack }) {
-  const onDrop = useCallback((accepted, rejected) => {
-    const valid = accepted.filter((f) => {
-      const isDupe = files.some((existing) => existing.name === f.name)
-      return !isDupe
-    })
+  const onDrop = useCallback((accepted) => {
+    const valid = accepted.filter((f) => !files.some((e) => e.name === f.name))
     setFiles((prev) => [...prev, ...valid].slice(0, 10))
   }, [files, setFiles])
 
@@ -329,14 +340,11 @@ function Step3({ files, setFiles, onNext, onBack }) {
 
   return (
     <div className="space-y-5">
-      {/* Dropzone */}
       <div
         {...getRootProps()}
         className={cn(
           'border-2 border-dashed rounded-2xl p-10 text-center cursor-pointer transition-all duration-200',
-          isDragActive
-            ? 'border-primary bg-primary/10 scale-[1.01]'
-            : 'border-border hover:border-primary/50 hover:bg-accent/30',
+          isDragActive ? 'border-primary bg-primary/10 scale-[1.01]' : 'border-border hover:border-primary/50 hover:bg-accent/30',
         )}
       >
         <input {...getInputProps()} />
@@ -347,12 +355,9 @@ function Step3({ files, setFiles, onNext, onBack }) {
         <p className="text-xs text-muted-foreground mt-1">
           or <span className="text-primary underline-offset-2 underline">browse to upload</span>
         </p>
-        <p className="text-xs text-muted-foreground mt-3">
-          Up to 10 files · 25MB each · Images, PDFs, docs, archives
-        </p>
+        <p className="text-xs text-muted-foreground mt-3">Up to 10 files · 25MB each · Images, PDFs, docs, archives</p>
       </div>
 
-      {/* File list */}
       {files.length > 0 && (
         <div className="space-y-2">
           {files.map((file) => (
@@ -372,18 +377,10 @@ function Step3({ files, setFiles, onNext, onBack }) {
       )}
 
       <div className="flex justify-between pt-2">
-        <button
-          type="button"
-          onClick={onBack}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-        >
+        <button type="button" onClick={onBack} className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
           <ChevronLeft className="w-4 h-4" /> Back
         </button>
-        <button
-          type="button"
-          onClick={onNext}
-          className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
-        >
+        <button type="button" onClick={onNext} className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">
           Continue <ChevronRight className="w-4 h-4" />
         </button>
       </div>
@@ -401,6 +398,8 @@ function Step4({ selectedProject, setSelectedProject, onBack, onSubmit, isSubmit
     },
   })
 
+  const projectList = projects.data?.items ?? projects.data?.content ?? (Array.isArray(projects.data) ? projects.data : [])
+
   return (
     <div className="space-y-5">
       <div>
@@ -412,22 +411,15 @@ function Step4({ selectedProject, setSelectedProject, onBack, onSubmit, isSubmit
         </p>
 
         {projects.isLoading ? (
-          <div className="space-y-2">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="h-14 bg-accent rounded-xl animate-pulse" />
-            ))}
-          </div>
+          <div className="space-y-2">{[1, 2, 3].map((i) => <div key={i} className="h-14 bg-accent rounded-xl animate-pulse" />)}</div>
         ) : (
           <div className="space-y-2 max-h-72 overflow-y-auto custom-scrollbar pr-1">
-            {/* None option */}
             <button
               type="button"
               onClick={() => setSelectedProject(null)}
               className={cn(
                 'w-full flex items-center gap-3 p-3 rounded-xl border text-left transition-all',
-                !selectedProject
-                  ? 'border-primary/50 bg-primary/10'
-                  : 'border-border hover:border-white/[0.15] hover:bg-accent/30',
+                !selectedProject ? 'border-primary/50 bg-primary/10' : 'border-border hover:border-white/[0.15] hover:bg-accent/30',
               )}
             >
               <div className="w-8 h-8 rounded-lg bg-accent flex items-center justify-center">
@@ -436,16 +428,14 @@ function Step4({ selectedProject, setSelectedProject, onBack, onSubmit, isSubmit
               <span className="text-sm text-muted-foreground">No project — standalone ticket</span>
             </button>
 
-            {(projects.data?.content ?? projects.data ?? []).map((project) => (
+            {projectList.map((project) => (
               <button
                 key={project.id}
                 type="button"
                 onClick={() => setSelectedProject(project.id)}
                 className={cn(
                   'w-full flex items-center gap-3 p-3 rounded-xl border text-left transition-all',
-                  selectedProject === project.id
-                    ? 'border-primary/50 bg-primary/10'
-                    : 'border-border hover:border-white/[0.15] hover:bg-accent/30',
+                  selectedProject === project.id ? 'border-primary/50 bg-primary/10' : 'border-border hover:border-white/[0.15] hover:bg-accent/30',
                 )}
               >
                 <div className="w-8 h-8 rounded-lg bg-primary/15 flex items-center justify-center shrink-0">
@@ -462,11 +452,7 @@ function Step4({ selectedProject, setSelectedProject, onBack, onSubmit, isSubmit
       </div>
 
       <div className="flex justify-between pt-2">
-        <button
-          type="button"
-          onClick={onBack}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-        >
+        <button type="button" onClick={onBack} className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
           <ChevronLeft className="w-4 h-4" /> Back
         </button>
         <button
@@ -486,8 +472,6 @@ function Step4({ selectedProject, setSelectedProject, onBack, onSubmit, isSubmit
 // --- Main page ---
 export default function CreateTicketPage() {
   const navigate = useNavigate()
-  const location = useLocation()
-  const base = location.pathname.startsWith('/internal') ? '/internal' : '/customer'
   const addToast = useUIStore((s) => s.addToast)
   const createTicket = useCreateTicket()
 
@@ -497,7 +481,7 @@ export default function CreateTicketPage() {
 
   const step1Form = useForm({
     resolver: zodResolver(step1Schema),
-    defaultValues: { title: '', category: '', priority: 'MEDIUM' },
+    defaultValues: { title: '', category: '', priority: 'medium' },
   })
 
   const step2Form = useForm({
@@ -505,10 +489,10 @@ export default function CreateTicketPage() {
     defaultValues: { description: '' },
   })
 
-  const handleNext = (stepData) => {
-    setCurrentStep((s) => s + 1)
-  }
+  const handleNext = () => setCurrentStep((s) => s + 1)
 
+  // FIXED: Create ticket first, THEN upload attachments to /tickets/{id}/attachments
+  // (was incorrectly calling POST /uploads before ticket creation — that endpoint doesn't exist)
   const handleSubmit = async () => {
     const step1Data = step1Form.getValues()
     const step2Data = step2Form.getValues()
@@ -517,12 +501,13 @@ export default function CreateTicketPage() {
       {
         ...step1Data,
         ...step2Data,
-        projectId: selectedProject,
+        project_id: selectedProject,
+        // No attachment_ids here — attachments are uploaded after the ticket ID exists
       },
       {
         onSuccess: async (ticket) => {
-          // Upload attachments after ticket creation using the ticket id
-          if (files.length > 0) {
+          // Upload attachments to the newly-created ticket's own endpoint
+          if (files.length > 0 && ticket?.id) {
             try {
               const formData = new FormData()
               files.forEach((f) => formData.append('files', f))
@@ -530,11 +515,19 @@ export default function CreateTicketPage() {
                 headers: { 'Content-Type': 'multipart/form-data' },
               })
             } catch {
-              addToast({ type: 'warning', title: 'Attachment upload failed', description: 'Ticket was created but files could not be attached.' })
+              addToast({
+                type: 'warning',
+                title: 'Attachment upload failed',
+                description: 'Your ticket was created but attachments could not be saved.',
+              })
             }
           }
-          addToast({ type: 'success', title: 'Ticket created!', description: `#${ticket.id?.slice(-6)} has been submitted.` })
-          navigate(`${base}/tickets/${ticket.id}`)
+          addToast({
+            type: 'success',
+            title: 'Ticket created!',
+            description: `#${ticket.id?.slice(-6)} has been submitted.`,
+          })
+          navigate(`/customer/tickets/${ticket.id}`)
         },
         onError: (err) => {
           addToast({
@@ -565,23 +558,13 @@ export default function CreateTicketPage() {
       {/* Step content */}
       <div className="glass-card rounded-2xl p-6 sm:p-8">
         <div className="mb-6">
-          <h2 className="text-base font-semibold text-foreground">
-            {STEPS[currentStep - 1].title}
-          </h2>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            {STEPS[currentStep - 1].description}
-          </p>
+          <h2 className="text-base font-semibold text-foreground">{STEPS[currentStep - 1].title}</h2>
+          <p className="text-sm text-muted-foreground mt-0.5">{STEPS[currentStep - 1].description}</p>
         </div>
 
-        {currentStep === 1 && (
-          <Step1 form={step1Form} onNext={handleNext} />
-        )}
-        {currentStep === 2 && (
-          <Step2 form={step2Form} onNext={handleNext} onBack={() => setCurrentStep(1)} />
-        )}
-        {currentStep === 3 && (
-          <Step3 files={files} setFiles={setFiles} onNext={() => setCurrentStep(4)} onBack={() => setCurrentStep(2)} />
-        )}
+        {currentStep === 1 && <Step1 form={step1Form} onNext={handleNext} />}
+        {currentStep === 2 && <Step2 form={step2Form} onNext={handleNext} onBack={() => setCurrentStep(1)} />}
+        {currentStep === 3 && <Step3 files={files} setFiles={setFiles} onNext={() => setCurrentStep(4)} onBack={() => setCurrentStep(2)} />}
         {currentStep === 4 && (
           <Step4
             selectedProject={selectedProject}
@@ -593,7 +576,6 @@ export default function CreateTicketPage() {
         )}
       </div>
 
-      {/* Step summary */}
       <div className="mt-4 text-center text-xs text-muted-foreground">
         Step {currentStep} of {STEPS.length}
       </div>

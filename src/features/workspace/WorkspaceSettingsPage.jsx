@@ -1,341 +1,334 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
+import { Settings, Users, Palette, Loader2, Trash2, UserPlus, Shield } from 'lucide-react'
 import api from '@/lib/axios'
-import { useUIStore } from '@/stores/uiStore'
 import { useAuthStore } from '@/stores/authStore'
+import { useUIStore } from '@/stores/uiStore'
 import { UserAvatar } from '@/components/shared/UserAvatar'
-import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
-import {
-  Settings, Palette, Users, Shield, Bell, Save,
-  Plus, Trash2, Loader2, ChevronRight, Mail, Crown
-} from 'lucide-react'
 import { cn } from '@/lib/utils'
 
+// ── API ───────────────────────────────────────────────────────────────────────
+
+const fetchWorkspace = async (id) => {
+  const { data } = await api.get(`/workspaces/${id}`)
+  return data
+}
+
+const fetchMembers = async (id) => {
+  const { data } = await api.get(`/workspaces/${id}/members`)
+  return data
+}
+
+const updateBranding = async ({ id, ...payload }) => {
+  const { data } = await api.patch(`/workspaces/${id}/branding`, payload)
+  return data
+}
+
+const removeMember = async ({ workspaceId, userId }) => {
+  await api.delete(`/workspaces/${workspaceId}/members/${userId}`)
+}
+
+const inviteUser = async (payload) => {
+  const { data } = await api.post('/auth/invite', payload)
+  return data
+}
+
+// ── Tabs ──────────────────────────────────────────────────────────────────────
+
 const TABS = [
-  { id: 'general', label: 'General', icon: Settings },
-  { id: 'branding', label: 'Branding', icon: Palette },
-  { id: 'members', label: 'Members', icon: Users },
-  { id: 'notifications', label: 'Notifications', icon: Bell },
+  { key: 'branding', label: 'Branding', icon: Palette },
+  { key: 'members', label: 'Members', icon: Users },
 ]
 
-function useWorkspace() {
-  return useQuery({
-    queryKey: ['workspace'],
-    queryFn: async () => { const { data } = await api.get('/workspace'); return data },
-  })
-}
+// ── Branding Tab ──────────────────────────────────────────────────────────────
 
-function useMembers() {
-  return useQuery({
-    queryKey: ['workspace', 'members'],
-    queryFn: async () => { const { data } = await api.get('/workspace/members'); return data },
-  })
-}
-
-function GeneralTab({ workspace }) {
+function BrandingTab({ workspace }) {
   const qc = useQueryClient()
   const addToast = useUIStore((s) => s.addToast)
-  const { register, handleSubmit, formState: { isDirty } } = useForm({
+  const { register, handleSubmit, reset, formState: { isDirty, isSubmitting } } = useForm({
     defaultValues: {
-      name: workspace?.name ?? '',
-      company: workspace?.company ?? '',
-      website: workspace?.website ?? '',
-      timezone: workspace?.timezone ?? 'UTC',
+      logo_url: workspace?.logo_url ?? '',
+      primary_color: workspace?.primary_color ?? '#8b5cf6',
+      accent_color: workspace?.accent_color ?? '#06b6d4',
     },
   })
 
-  const save = useMutation({
-    mutationFn: (data) => api.patch('/workspace', data),
+  useEffect(() => {
+    if (workspace) reset({
+      logo_url: workspace.logo_url ?? '',
+      primary_color: workspace.primary_color ?? '#8b5cf6',
+      accent_color: workspace.accent_color ?? '#06b6d4',
+    })
+  }, [workspace, reset])
+
+  const mutation = useMutation({
+    mutationFn: (payload) => updateBranding({ id: workspace.id, ...payload }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['workspace'] })
-      addToast({ type: 'success', title: 'Settings saved' })
+      qc.invalidateQueries({ queryKey: ['workspace', workspace.id] })
+      addToast({ type: 'success', title: 'Branding updated' })
     },
-    onError: () => addToast({ type: 'error', title: 'Failed to save' }),
+    onError: () => addToast({ type: 'error', title: 'Failed to update branding' }),
   })
 
   return (
-    <form onSubmit={handleSubmit((d) => save.mutate(d))} className="space-y-5 max-w-lg">
-      {[
-        { name: 'name', label: 'Workspace Name', placeholder: 'Acme Corp' },
-        { name: 'company', label: 'Company', placeholder: 'Acme Corporation Ltd' },
-        { name: 'website', label: 'Website', placeholder: 'https://acme.com', type: 'url' },
-      ].map(({ name, label, placeholder, type = 'text' }) => (
-        <div key={name}>
-          <label className="block text-sm font-medium text-foreground mb-1.5">{label}</label>
-          <input
-            type={type}
-            {...register(name)}
-            placeholder={placeholder}
-            className="w-full px-4 py-2.5 rounded-xl text-sm bg-accent/50 border border-white/[0.08] text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/50"
-          />
-        </div>
-      ))}
-
+    <form onSubmit={handleSubmit((d) => mutation.mutate(d))} className="space-y-5 max-w-lg">
       <div>
-        <label className="block text-sm font-medium text-foreground mb-1.5">Timezone</label>
-        <select
-          {...register('timezone')}
-          className="w-full px-4 py-2.5 rounded-xl text-sm bg-accent/50 border border-white/[0.08] text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
-        >
-          {['UTC', 'America/New_York', 'America/Chicago', 'America/Los_Angeles', 'Europe/London', 'Europe/Paris', 'Asia/Tokyo', 'Asia/Kolkata', 'Australia/Sydney'].map((tz) => (
-            <option key={tz} value={tz}>{tz}</option>
-          ))}
-        </select>
+        <label className="block text-sm font-medium text-foreground mb-1.5">Logo URL</label>
+        <input
+          {...register('logo_url')}
+          placeholder="https://yourcompany.com/logo.png"
+          className="w-full px-3 py-2.5 rounded-xl bg-accent/50 border border-white/[0.08] text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50"
+        />
+        <p className="text-xs text-muted-foreground mt-1">Link to your company logo (PNG or SVG recommended)</p>
       </div>
-
-      <button
-        type="submit"
-        disabled={!isDirty || save.isPending}
-        className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
-      >
-        {save.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-        Save Changes
-      </button>
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-foreground mb-1.5">Primary Color</label>
+          <div className="flex items-center gap-2">
+            <input
+              type="color"
+              {...register('primary_color')}
+              className="w-10 h-10 rounded-lg border border-white/[0.08] bg-transparent cursor-pointer"
+            />
+            <input
+              {...register('primary_color')}
+              placeholder="#8b5cf6"
+              className="flex-1 px-3 py-2.5 rounded-xl bg-accent/50 border border-white/[0.08] text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50"
+            />
+          </div>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-foreground mb-1.5">Accent Color</label>
+          <div className="flex items-center gap-2">
+            <input
+              type="color"
+              {...register('accent_color')}
+              className="w-10 h-10 rounded-lg border border-white/[0.08] bg-transparent cursor-pointer"
+            />
+            <input
+              {...register('accent_color')}
+              placeholder="#06b6d4"
+              className="flex-1 px-3 py-2.5 rounded-xl bg-accent/50 border border-white/[0.08] text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50"
+            />
+          </div>
+        </div>
+      </div>
+      <div className="pt-2">
+        <button
+          type="submit"
+          disabled={!isDirty || isSubmitting}
+          className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
+        >
+          {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
+          Save Changes
+        </button>
+      </div>
     </form>
   )
 }
 
-function BrandingTab({ workspace }) {
-  const addToast = useUIStore((s) => s.addToast)
-  const qc = useQueryClient()
-  const [primary, setPrimary] = useState(workspace?.brand_color ?? '#8b5cf6')
-  const [accent, setAccent] = useState(workspace?.accent_color ?? '#6d28d9')
+// ── Members Tab ───────────────────────────────────────────────────────────────
 
-  const save = useMutation({
-    mutationFn: (data) => api.patch('/workspace/branding', data),
-    onSuccess: (_, vars) => {
-      document.documentElement.style.setProperty('--brand-primary', vars.brand_color)
-      document.documentElement.style.setProperty('--brand-accent', vars.accent_color)
-      qc.invalidateQueries({ queryKey: ['workspace'] })
-      addToast({ type: 'success', title: 'Branding updated' })
+function InviteForm({ workspaceId, onClose }) {
+  const qc = useQueryClient()
+  const addToast = useUIStore((s) => s.addToast)
+  const { register, handleSubmit, reset, formState: { isSubmitting } } = useForm()
+
+  const mutation = useMutation({
+    mutationFn: (d) => inviteUser({ ...d, workspace_id: workspaceId }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['workspace', workspaceId, 'members'] })
+      addToast({ type: 'success', title: 'Invite sent' })
+      reset()
+      onClose()
     },
+    onError: () => addToast({ type: 'error', title: 'Failed to send invite' }),
   })
 
   return (
-    <div className="space-y-6 max-w-lg">
-      <div className="p-4 rounded-xl bg-accent/30 border border-white/[0.06] text-sm text-muted-foreground">
-        Branding colors are applied across the portal as CSS variables and update in real time.
+    <form onSubmit={handleSubmit((d) => mutation.mutate(d))} className="p-5 bg-accent/20 rounded-xl border border-white/[0.06] space-y-3">
+      <h4 className="text-sm font-semibold text-foreground">Invite new member</h4>
+      <div className="grid grid-cols-2 gap-3">
+        <input
+          {...register('email', { required: true })}
+          type="email"
+          placeholder="Email address *"
+          className="col-span-2 px-3 py-2 rounded-xl bg-accent/50 border border-white/[0.08] text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50"
+        />
+        <input
+          {...register('name')}
+          placeholder="Full name"
+          className="px-3 py-2 rounded-xl bg-accent/50 border border-white/[0.08] text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50"
+        />
+        <select
+          {...register('role')}
+          className="px-3 py-2 rounded-xl bg-accent/50 border border-white/[0.08] text-sm text-foreground outline-none focus:border-primary/50"
+        >
+          <option value="customer_user">Customer User</option>
+          <option value="customer_admin">Customer Admin</option>
+          <option value="3sc_agent">3SC Agent</option>
+          <option value="3sc_lead">3SC Lead</option>
+          <option value="3sc_admin">3SC Admin</option>
+        </select>
       </div>
-
-      <div className="space-y-4">
-        {[
-          { label: 'Primary Brand Color', value: primary, onChange: setPrimary, key: 'brand_color' },
-          { label: 'Accent Color', value: accent, onChange: setAccent, key: 'accent_color' },
-        ].map(({ label, value, onChange }) => (
-          <div key={label}>
-            <label className="block text-sm font-medium text-foreground mb-2">{label}</label>
-            <div className="flex items-center gap-3">
-              <input
-                type="color"
-                value={value}
-                onChange={(e) => onChange(e.target.value)}
-                className="w-10 h-10 rounded-xl cursor-pointer border border-white/[0.08] bg-transparent"
-              />
-              <input
-                type="text"
-                value={value}
-                onChange={(e) => onChange(e.target.value)}
-                placeholder="#8b5cf6"
-                className="flex-1 px-4 py-2.5 rounded-xl text-sm bg-accent/50 border border-white/[0.08] text-foreground font-mono focus:outline-none focus:ring-2 focus:ring-primary/50"
-              />
-              <div className="w-10 h-10 rounded-xl shrink-0" style={{ background: value }} />
-            </div>
-          </div>
-        ))}
+      <div className="flex gap-2">
+        <button
+          type="submit"
+          disabled={isSubmitting}
+          className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
+        >
+          {isSubmitting && <Loader2 className="w-3 h-3 animate-spin" />} Send Invite
+        </button>
+        <button type="button" onClick={onClose} className="px-4 py-2 rounded-xl text-xs text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">Cancel</button>
       </div>
-
-      <button
-        onClick={() => save.mutate({ brand_color: primary, accent_color: accent })}
-        disabled={save.isPending}
-        className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
-      >
-        {save.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-        Apply Branding
-      </button>
-    </div>
+    </form>
   )
 }
 
-function MembersTab() {
-  const [inviteEmail, setInviteEmail] = useState('')
-  const [removeTarget, setRemoveTarget] = useState(null)
+function MembersTab({ workspace }) {
+  const role = useAuthStore((s) => s.role)
   const addToast = useUIStore((s) => s.addToast)
   const qc = useQueryClient()
-  const currentUser = useAuthStore((s) => s.user)
+  const [showInvite, setShowInvite] = useState(false)
+  const canManage = ['customer_admin', '3sc_admin'].includes(role)
 
-  const { data, isLoading } = useMembers()
-  const members = data?.items ?? []
-
-  const invite = useMutation({
-    mutationFn: (email) => api.post('/workspace/members/invite', { email }),
-    onSuccess: () => {
-      setInviteEmail('')
-      qc.invalidateQueries({ queryKey: ['workspace', 'members'] })
-      addToast({ type: 'success', title: 'Invitation sent' })
-    },
-    onError: () => addToast({ type: 'error', title: 'Failed to send invitation' }),
+  const { data, isLoading } = useQuery({
+    queryKey: ['workspace', workspace.id, 'members'],
+    queryFn: () => fetchMembers(workspace.id),
   })
 
-  const removeMember = useMutation({
-    mutationFn: (id) => api.delete(`/workspace/members/${id}`),
+  const members = Array.isArray(data) ? data : (data?.items ?? data?.content ?? [])
+
+  const removeMutation = useMutation({
+    mutationFn: ({ userId }) => removeMember({ workspaceId: workspace.id, userId }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['workspace', 'members'] })
+      qc.invalidateQueries({ queryKey: ['workspace', workspace.id, 'members'] })
       addToast({ type: 'success', title: 'Member removed' })
-      setRemoveTarget(null)
     },
+    onError: () => addToast({ type: 'error', title: 'Failed to remove member' }),
   })
-
-  const ROLE_LABEL = { customer_admin: 'Admin', customer_user: 'Member' }
-  const ROLE_ICON = { customer_admin: Crown, customer_user: Users }
 
   return (
-    <div className="space-y-5 max-w-2xl">
-      {/* Invite form */}
-      <div className="glass-card rounded-2xl p-4">
-        <p className="text-sm font-semibold text-foreground mb-3">Invite Member</p>
-        <div className="flex gap-2">
-          <div className="relative flex-1">
-            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <input
-              type="email"
-              value={inviteEmail}
-              onChange={(e) => setInviteEmail(e.target.value)}
-              placeholder="colleague@company.com"
-              onKeyDown={(e) => e.key === 'Enter' && inviteEmail && invite.mutate(inviteEmail)}
-              className="w-full pl-9 pr-4 py-2.5 rounded-xl text-sm bg-accent/50 border border-white/[0.08] text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/50"
-            />
-          </div>
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-muted-foreground">{isLoading ? '…' : `${members.length} members`}</p>
+        {canManage && (
           <button
-            onClick={() => inviteEmail && invite.mutate(inviteEmail)}
-            disabled={!inviteEmail || invite.isPending}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
+            onClick={() => setShowInvite((v) => !v)}
+            className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-muted-foreground border border-white/[0.08] hover:text-foreground hover:bg-accent/50 transition-colors"
           >
-            {invite.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-            Invite
+            <UserPlus className="w-3.5 h-3.5" /> Invite
           </button>
-        </div>
+        )}
       </div>
 
-      {/* Member list */}
-      <div className="glass-card rounded-2xl overflow-hidden">
-        <div className="px-5 py-3.5 border-b border-white/[0.06]">
-          <p className="text-sm font-semibold text-foreground">Members ({members.length})</p>
-        </div>
+      {showInvite && <InviteForm workspaceId={workspace.id} onClose={() => setShowInvite(false)} />}
+
+      <div className="space-y-1">
         {isLoading ? (
           Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="flex items-center gap-4 px-5 py-4 border-b border-white/[0.04]">
-              <div className="w-9 h-9 rounded-full bg-accent animate-pulse" />
+            <div key={i} className="flex items-center gap-3 px-4 py-3 rounded-xl">
+              <div className="w-8 h-8 rounded-full bg-accent animate-pulse" />
               <div className="flex-1 space-y-1.5">
-                <div className="h-4 bg-accent rounded animate-pulse w-1/3" />
-                <div className="h-3 bg-accent rounded animate-pulse w-1/2" />
+                <div className="h-3.5 bg-accent rounded animate-pulse w-1/3" />
+                <div className="h-3 bg-accent rounded animate-pulse w-1/4" />
               </div>
             </div>
           ))
         ) : (
-          members.map((member) => {
-            const RoleIcon = ROLE_ICON[member.role] ?? Users
-            const isCurrentUser = member.id === currentUser?.id
-            return (
-              <div key={member.id} className="flex items-center gap-4 px-5 py-4 border-b border-white/[0.04] last:border-0 hover:bg-accent/20 transition-colors">
-                <UserAvatar user={member} size="sm" />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm font-medium text-foreground">{member.name}</p>
-                    {isCurrentUser && (
-                      <span className="text-xs px-1.5 py-0.5 rounded bg-primary/10 text-primary">You</span>
-                    )}
-                  </div>
-                  <p className="text-xs text-muted-foreground">{member.email}</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="flex items-center gap-1.5 text-xs text-muted-foreground px-2.5 py-1 rounded-lg bg-accent/50 border border-white/[0.06]">
-                    <RoleIcon className="w-3 h-3" />
-                    {ROLE_LABEL[member.role] ?? member.role}
-                  </span>
-                  {!isCurrentUser && (
-                    <button
-                      onClick={() => setRemoveTarget(member)}
-                      className="w-7 h-7 flex items-center justify-center rounded-lg text-muted-foreground hover:text-red-400 hover:bg-red-500/10 transition-colors"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  )}
-                </div>
+          members.map((member) => (
+            <div key={member.id ?? member.user_id} className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-accent/30 transition-colors group">
+              <UserAvatar user={member} size="sm" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-foreground truncate">{member.name}</p>
+                <p className="text-xs text-muted-foreground truncate">{member.email}</p>
               </div>
-            )
-          })
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-accent text-muted-foreground capitalize">
+                  {member.role?.replace(/_/g, ' ')}
+                </span>
+                {canManage && (
+                  <button
+                    onClick={() => removeMutation.mutate({ userId: member.id ?? member.user_id })}
+                    disabled={removeMutation.isPending}
+                    className="w-7 h-7 flex items-center justify-center rounded-lg text-muted-foreground hover:text-red-400 hover:bg-red-400/10 opacity-0 group-hover:opacity-100 transition-all disabled:opacity-30"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+            </div>
+          ))
         )}
       </div>
-
-      <ConfirmDialog
-        open={!!removeTarget}
-        onClose={() => setRemoveTarget(null)}
-        onConfirm={() => removeMember.mutate(removeTarget?.id)}
-        title={`Remove ${removeTarget?.name}?`}
-        message="They will lose access to this workspace immediately."
-        confirmLabel="Remove"
-      />
     </div>
   )
 }
 
-export default function WorkspaceSettingsPage() {
-  const [activeTab, setActiveTab] = useState('general')
-  const { data: workspace, isLoading } = useWorkspace()
+// ── Main Page ─────────────────────────────────────────────────────────────────
 
-  const TAB_CONTENT = {
-    general: <GeneralTab workspace={workspace} />,
-    branding: <BrandingTab workspace={workspace} />,
-    members: <MembersTab />,
-    notifications: (
-      <div className="text-sm text-muted-foreground py-4">
-        Notification preferences coming soon.
+export default function WorkspaceSettingsPage() {
+  const workspaceId = useAuthStore((s) => s.workspaceId)
+  const [activeTab, setActiveTab] = useState('branding')
+
+  const { data: workspace, isLoading, error } = useQuery({
+    queryKey: ['workspace', workspaceId],
+    queryFn: () => fetchWorkspace(workspaceId),
+    enabled: !!workspaceId,
+  })
+
+  if (!workspaceId) {
+    return (
+      <div className="max-w-xl mx-auto py-20 text-center">
+        <Shield className="w-10 h-10 text-muted-foreground mx-auto mb-4" />
+        <p className="text-sm text-foreground">No workspace associated with your account.</p>
       </div>
-    ),
+    )
   }
 
   return (
-    <div className="max-w-5xl mx-auto space-y-5">
+    <div className="max-w-4xl mx-auto space-y-5">
       <div>
         <h1 className="text-2xl font-display font-bold text-foreground">Workspace Settings</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">Manage your workspace configuration and members</p>
+        {workspace && <p className="text-sm text-muted-foreground mt-0.5">{workspace.name}</p>}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Sidebar nav */}
-        <div className="lg:col-span-1">
-          <div className="glass-card rounded-2xl p-2 space-y-0.5">
-            {TABS.map(({ id, label, icon: Icon }) => (
-              <button
-                key={id}
-                onClick={() => setActiveTab(id)}
-                className={cn('nav-item w-full', activeTab === id && 'active')}
-              >
-                <Icon className="w-4 h-4" />
-                {label}
-                <ChevronRight className={cn('w-3.5 h-3.5 ml-auto transition-opacity', activeTab === id ? 'opacity-100' : 'opacity-0')} />
-              </button>
-            ))}
-          </div>
+      <div className="glass-card rounded-2xl overflow-hidden">
+        {/* Tab bar */}
+        <div className="flex border-b border-white/[0.06]">
+          {TABS.map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={cn(
+                'flex items-center gap-2 px-5 py-3.5 text-sm font-medium transition-colors border-b-2',
+                activeTab === tab.key
+                  ? 'border-primary text-primary'
+                  : 'border-transparent text-muted-foreground hover:text-foreground',
+              )}
+            >
+              <tab.icon className="w-4 h-4" />
+              {tab.label}
+            </button>
+          ))}
         </div>
 
-        {/* Content */}
-        <div className="lg:col-span-3">
-          <div className="glass-card rounded-2xl p-6">
-            <h2 className="text-base font-semibold text-foreground mb-5">
-              {TABS.find((t) => t.id === activeTab)?.label}
-            </h2>
-            {isLoading ? (
-              <div className="space-y-4">
-                {Array.from({ length: 3 }).map((_, i) => (
-                  <div key={i} className="h-12 bg-accent rounded-xl animate-pulse" />
-                ))}
-              </div>
-            ) : (
-              TAB_CONTENT[activeTab]
-            )}
-          </div>
+        {/* Tab content */}
+        <div className="p-6">
+          {isLoading ? (
+            <div className="space-y-3">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="h-12 bg-accent rounded-xl animate-pulse" />
+              ))}
+            </div>
+          ) : error || !workspace ? (
+            <p className="text-sm text-muted-foreground">Could not load workspace settings.</p>
+          ) : activeTab === 'branding' ? (
+            <BrandingTab workspace={workspace} />
+          ) : (
+            <MembersTab workspace={workspace} />
+          )}
         </div>
       </div>
     </div>

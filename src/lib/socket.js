@@ -13,7 +13,7 @@ export const initSocket = () => {
 
   socket = io(import.meta.env.VITE_SOCKET_URL || 'http://localhost:8080', {
     auth: { token },
-    query: { workspaceId },
+    query: { workspaceId, token }, 
     transports: ['websocket', 'polling'],
     reconnection: true,
     reconnectionDelay: 1000,
