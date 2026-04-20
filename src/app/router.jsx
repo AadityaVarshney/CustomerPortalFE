@@ -17,6 +17,8 @@ const ArticlePage = lazy(() => import('@/features/knowledge-base/KnowledgeBasePa
 const NotificationsPage = lazy(() => import('@/features/notifications/NotificationsPage'))
 const WorkspaceSettings = lazy(() => import('@/features/workspace/WorkspaceSettingsPage'))
 const AnalyticsDashboard = lazy(() => import('@/features/analytics/AnalyticsDashboard'))
+const CustomersListPage = lazy(() => import('@/features/customers/CustomersPage').then(m => ({ default: m.CustomersListPage })))
+const CustomerDetailPage = lazy(() => import('@/features/customers/CustomersPage').then(m => ({ default: m.CustomerDetailPage })))
 
 const StubPage = ({ title }) => (
   <div className="flex items-center justify-center h-64">
@@ -99,8 +101,8 @@ export default function AppRouter() {
             <Route path=":ticketId" element={<TicketDetailPage />} />
           </Route>
           <Route path="customers">
-            <Route index element={<StubPage title="Customer Workspaces" />} />
-            <Route path=":workspaceId" element={<StubPage title="Customer Detail" />} />
+          <Route index element={<CustomersListPage />} />
+          <Route path=":workspaceId" element={<CustomerDetailPage />} />
           </Route>
           <Route path="analytics" element={<AnalyticsDashboard />} />
           <Route path="knowledge-base">
